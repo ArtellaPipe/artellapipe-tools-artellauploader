@@ -150,7 +150,8 @@ class ArtellaUploader(tool.Tool, object):
         for root, dirs, files in os.walk(root_path):
             for f in files:
                 file_path = '{}{}{}'.format(root, os.sep, f)
-                list_item = QTreeWidgetItem(self._files_list, [None, os.path.relpath(file_path, root_path), self._files_list])
+                list_item = QTreeWidgetItem(
+                    self._files_list, [None, os.path.relpath(file_path, root_path), self._files_list])
                 list_item.path = file_path
                 list_item.setFlags(list_item.flags() | Qt.ItemIsUserCheckable)
                 list_item.setTextAlignment(2, Qt.AlignCenter)
@@ -190,7 +191,9 @@ class ArtellaUploader(tool.Tool, object):
             LOGGER.warning('Selected a folder to sync first!')
             return
 
-        result = qtutils.show_question(None, 'Synchronizing folder: {}'.format(current_path), 'Are you sure you want to synchronize this folder? This can take quite a lot of time!')
+        result = qtutils.show_question(
+            None, 'Synchronizing folder: {}'.format(current_path),
+            'Are you sure you want to synchronize this folder? This can take quite a lot of time!')
         if result == QMessageBox.No:
             return
 
@@ -253,7 +256,7 @@ class ArtellaUploader(tool.Tool, object):
             all_items = list(self._all_items())
             self._progress.setVisible(True)
             self._progress.setMinimum(0)
-            self._progress.setMaximum(len(all_items)-1)
+            self._progress.setMaximum(len(all_items) - 1)
             self._progress_lbl.setText('Checking file versions ... Please wait!')
             for i, item in enumerate(all_items):
                 self._progress.setValue(i)
@@ -285,7 +288,7 @@ class ArtellaUploader(tool.Tool, object):
 
         self._progress.setVisible(True)
         self._progress.setMinimum(0)
-        self._progress.setMaximum(len(items_to_lock)-1)
+        self._progress.setMaximum(len(items_to_lock) - 1)
         self._progress_lbl.setText('Locking files ...')
         for i, item in enumerate(items_to_lock):
             self._progress.setValue(i)
@@ -307,8 +310,10 @@ class ArtellaUploader(tool.Tool, object):
         if not items_to_unlock:
             return
 
-        msg = 'If changes in files are not submitted to Artella yet, submit them before unlocking the file please. \n\n Do you want to continue?'
-        res = tp.Dcc.confirm_dialog(title='Unlock File', message=msg, button=['Yes', 'No'], cancel_button='No', dismiss_string='No')
+        msg = 'If changes in files are not submitted to Artella yet, submit them before unlocking the file please. ' \
+              '\n\n Do you want to continue?'
+        res = tp.Dcc.confirm_dialog(
+            title='Unlock File', message=msg, button=['Yes', 'No'], cancel_button='No', dismiss_string='No')
         if tp.is_houdini():
             if res != QMessageBox.StandardButton.Yes:
                 return
@@ -348,7 +353,7 @@ class ArtellaUploader(tool.Tool, object):
         if res and comment:
             self._progress.setVisible(True)
             self._progress.setMinimum(0)
-            self._progress.setMaximum(len(items_to_upload)-1)
+            self._progress.setMaximum(len(items_to_upload) - 1)
             self._progress_lbl.setText('Uploading new working versions to Artella server ...')
             for i, item in enumerate(items_to_upload):
                 self._progress.setValue(i)
@@ -357,4 +362,5 @@ class ArtellaUploader(tool.Tool, object):
             self._progress.setValue(0)
             self._progress_lbl.setText('')
             self._progress.setVisible(False)
-            self._project.tray.show_message(title='New Working Versions', msg='New versions uploaded to Artella server successfully!')
+            self._project.tray.show_message(
+                title='New Working Versions', msg='New versions uploaded to Artella server successfully!')

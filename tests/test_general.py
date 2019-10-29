@@ -7,7 +7,7 @@ Module that contains general tests for artellapipe-tools-artellamanager
 
 import pytest
 
-from artellapipe.tools.artellamanager import __version__
+from artellapipe.tools.artellauploader import __version__
 
 
 def test_version():
