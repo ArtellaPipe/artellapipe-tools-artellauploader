@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Tool to upload new working versions of files to Artella in a batch mode
+Tool to easily upload files into Artella server
 """
 
 from __future__ import print_function, division, absolute_import
@@ -24,28 +24,16 @@ import tpDccLib as tp
 from tpQtLib.core import qtutils
 from tpQtLib.widgets import splitters
 
-import artellapipe.tools.artellauploader
 from artellapipe.utils import resource
-from artellapipe.core import artellalib
-from artellapipe.gui import window
+from artellapipe.core import tool, artellalib
 
-logging.config.fileConfig(artellapipe.tools.artellauploader.get_logging_config(), disable_existing_loggers=False)
-logger = logging.getLogger(__name__)
-logger.setLevel(artellapipe.tools.artellauploader.get_logging_level())
+LOGGER = logging.getLogger()
 
 
-class ArtellaUploader(window.ArtellaWindow, object):
+class ArtellaUploader(tool.Tool, object):
 
-    VERSION = '0.0.1'
-    LOGO_NAME = 'artellauploader_logo'
-
-    def __init__(self, project):
-        super(ArtellaUploader, self).__init__(
-            project=project,
-            name='ArtellaUploaderWindow',
-            title='Artella Uploader',
-            size=(450, 650)
-        )
+    def __init__(self, project, config):
+        super(ArtellaUploader, self).__init__(project=project, config=config)
 
     def get_main_layout(self):
         main_layout = QVBoxLayout()
@@ -74,14 +62,14 @@ class ArtellaUploader(window.ArtellaWindow, object):
         self._folder_path.setToolTip(tip)
         self._folder_path.setStatusTip(tip)
         self._folder_path.setContextMenuPolicy(Qt.CustomContextMenu)
-        browse_icon = resource.ResourceManager.instance().icon('open')
+        browse_icon = resource.ResourceManager().icon('open')
         self._browse_btn = QPushButton()
         self._browse_btn.setFlat(True)
         self._browse_btn.setIcon(browse_icon)
         self._browse_btn.setFixedWidth(30)
         self._browse_btn.setToolTip('Browse Root Folder')
         self._browse_btn.setStatusTip('Browse Root Folder')
-        sync_icon = resource.ResourceManager.instance().icon('sync')
+        sync_icon = resource.ResourceManager().icon('sync')
         self._sync_btn = QPushButton()
         self._sync_btn.setFlat(True)
         self._sync_btn.setIcon(sync_icon)
@@ -118,9 +106,9 @@ class ArtellaUploader(window.ArtellaWindow, object):
         buttons_layout = QHBoxLayout()
         buttons_layout.setContentsMargins(2, 2, 2, 2)
         buttons_layout.setSpacing(2)
-        lock_icon = resource.ResourceManager.instance().icon('lock')
-        unlock_icon = resource.ResourceManager.instance().icon('unlock')
-        upload_icon = resource.ResourceManager.instance().icon('upload')
+        lock_icon = resource.ResourceManager().icon('lock')
+        unlock_icon = resource.ResourceManager().icon('unlock')
+        upload_icon = resource.ResourceManager().icon('upload')
         self._lock_btn = QPushButton('Lock')
         self._lock_btn.setIcon(lock_icon)
         self._unlock_btn = QPushButton('Unlock')
@@ -199,7 +187,7 @@ class ArtellaUploader(window.ArtellaWindow, object):
     def _on_sync(self):
         current_path = self._folder_path.text()
         if not current_path or not os.path.isdir(current_path):
-            logger.warning('Selected a folder to sync first!')
+            LOGGER.warning('Selected a folder to sync first!')
             return
 
         result = qtutils.show_question(None, 'Synchronizing folder: {}'.format(current_path), 'Are you sure you want to synchronize this folder? This can take quite a lot of time!')
@@ -212,8 +200,8 @@ class ArtellaUploader(window.ArtellaWindow, object):
             self.repaint()
             artellalib.synchronize_path_with_folders(current_path, recursive=True)
         except Exception as e:
-            logger.error(str(e))
-            logger.error(traceback.format_exc())
+            LOGGER.error(str(e))
+            LOGGER.error(traceback.format_exc())
         finally:
             self._progress.setVisible(False)
             self._progress_lbl.setText('')
@@ -277,8 +265,8 @@ class ArtellaUploader(window.ArtellaWindow, object):
                     item.setText(2, str(current_version))
                 item.setText(3, str(current_version + 1))
         except Exception as e:
-            logger.error(str(e))
-            logger.error(traceback.format_exc())
+            LOGGER.error(str(e))
+            LOGGER.error(traceback.format_exc())
         finally:
             self._progress.setValue(0)
             self._progress_lbl.setText('')
@@ -370,10 +358,3 @@ class ArtellaUploader(window.ArtellaWindow, object):
             self._progress_lbl.setText('')
             self._progress.setVisible(False)
             self._project.tray.show_message(title='New Working Versions', msg='New versions uploaded to Artella server successfully!')
-
-
-def run(project):
-    win = ArtellaUploader(project=project)
-    win.show()
-
-    return win

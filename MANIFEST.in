@@ -1,1 +1,2 @@
-include source/artellapipe/tools/resources/images/*.*
+include source/artellapipe/tools/artellauploader/resources/images/*.*
+include source/artellapipe/tools/artellauploader/icons/color/*.*
