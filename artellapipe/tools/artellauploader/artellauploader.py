@@ -496,7 +496,8 @@ class ArtellaUploader(tool.Tool, object):
                 self._progress.setValue(i)
                 self._progress_lbl.setText('New version for: {} ({})'.format(item.text(1), item.text(3)))
                 self.repaint()
-                valid_upload = artellapipe.FilesMgr().upload_working_version(item.path, skip_saving=True, notify=False, comment=comment)
+                valid_upload = artellapipe.FilesMgr().upload_working_version(
+                    item.path, skip_saving=True, notify=False, comment=comment)
                 if valid_upload:
                     self.show_ok_message(
                         '{} ({}) uploaded successfully to Artella server!'.format(item.text(1), item.text(3)))
