@@ -18,14 +18,17 @@ import logging.config
 
 from Qt.QtWidgets import *
 from Qt.QtCore import *
+from Qt.QtGui import *
 
 import tpDccLib as tp
 
 from tpQtLib.core import qtutils
 from tpQtLib.widgets import splitters
 
+import artellapipe
+from artellapipe.libs.artella.core import artellalib
 from artellapipe.utils import resource
-from artellapipe.core import tool, artellalib
+from artellapipe.core import tool
 
 LOGGER = logging.getLogger()
 
@@ -94,8 +97,9 @@ class ArtellaUploader(tool.Tool, object):
         self._files_list.setColumnCount(4)
         self._files_list.setAlternatingRowColors(True)
         self._files_list.setHeaderLabels(['', 'Path', 'Current Version', 'New Version'])
-        for i in range(4):
-            self._files_list.resizeColumnToContents(i)
+        self._files_list.setColumnWidth(0, 80)
+        self._files_list.resizeColumnToContents(1)
+        self._files_list.setColumnWidth(2, 120)
 
         self._progress = self._project.get_progress_bar()
         self._progress.setVisible(False)
@@ -135,10 +139,16 @@ class ArtellaUploader(tool.Tool, object):
         self._upload_btn.clicked.connect(self._on_upload)
         self._unlock_btn.clicked.connect(self._on_unlock)
 
-    def _on_data_changed(self):
-        checked_items = self._checked_items()
-        total_checked_items = len(list(checked_items))
-        self._total_items_lbl.setText('Total Checked Items: {}'.format(total_checked_items))
+    def _update_items(self, skip_update=False):
+        """
+        Function that refresh all the items
+        """
+
+        self._refresh_files()
+        self._check_update(skip_update=skip_update)
+        if not skip_update:
+            self._refresh_lock_unlock()
+            self._refresh_versions()
 
     def _refresh_files(self):
         root_path = self._folder_path.text()
@@ -153,6 +163,7 @@ class ArtellaUploader(tool.Tool, object):
                 list_item = QTreeWidgetItem(
                     self._files_list, [None, os.path.relpath(file_path, root_path), self._files_list])
                 list_item.path = file_path
+                list_item.is_valid = True
                 list_item.setFlags(list_item.flags() | Qt.ItemIsUserCheckable)
                 list_item.setTextAlignment(2, Qt.AlignCenter)
                 list_item.setTextAlignment(3, Qt.AlignCenter)
@@ -161,65 +172,136 @@ class ArtellaUploader(tool.Tool, object):
                 else:
                     list_item.setCheckState(0, Qt.Unchecked)
 
-        for i in range(4):
-            self._files_list.resizeColumnToContents(i)
+        self._files_list.setColumnWidth(0, 80)
+        self._files_list.resizeColumnToContents(1)
+        self._files_list.setColumnWidth(2, 120)
 
-    def _on_browse(self):
-        stored_path = self.settings().get('upload_path')
-        if stored_path and os.path.isdir(stored_path):
-            start_directory = stored_path
-        else:
-            start_directory = self._project.get_path()
+    def _check_update(self, skip_update=False):
+        """
+        Internal function that checks if files are updated or not
+        """
 
-        export_path = tp.Dcc.select_folder_dialog(
-            title='Select Root Path',
-            start_directory=start_directory
-        )
-        if not export_path:
-            return
-
-        self.settings().set('upload_path', str(export_path))
-
-        self._folder_path.setText(export_path)
-
-        self._refresh_files()
-        self._refresh_versions()
-
-    def _on_sync(self):
-        current_path = self._folder_path.text()
-        if not current_path or not os.path.isdir(current_path):
-            LOGGER.warning('Selected a folder to sync first!')
-            return
-
-        result = qtutils.show_question(
-            None, 'Synchronizing folder: {}'.format(current_path),
-            'Are you sure you want to synchronize this folder? This can take quite a lot of time!')
-        if result == QMessageBox.No:
-            return
+        not_updated_items = list()
 
         try:
+            all_items = list(self._all_items())
             self._progress.setVisible(True)
-            self._progress_lbl.setText('Synchronizing files ... Please wait!')
-            self.repaint()
-            artellalib.synchronize_path_with_folders(current_path, recursive=True)
+            self._progress.setMinimum(0)
+            self._progress.setMaximum(len(all_items) - 1)
+            self._progress_lbl.setText('Checking if files are updated ... Please wait!')
+            for i, item in enumerate(all_items):
+                self._progress.setValue(i)
+                self._progress_lbl.setText('Checking if file is updated: {}'.format(item.text(1)))
+                is_updated = artellalib.is_updated(item.path)
+                if is_updated is None:
+                    item.setCheckState(0, Qt.Unchecked)
+                    item.setFlags(Qt.NoItemFlags)
+                    for i in range(5):
+                        item.setBackgroundColor(i, QColor(160, 50, 40, 100))
+                    item.setText(2, 'ONLY IN LOCAL')
+                    item.setText(3, 'ONLY IN LOCAL')
+                    not_updated_items.append(item)
+                elif is_updated is False:
+                    item.setCheckState(0, Qt.Unchecked)
+                    item.setFlags(Qt.NoItemFlags)
+                    for i in range(5):
+                        item.setBackgroundColor(i, QColor(170, 130, 30, 100))
+                    item.setText(2, 'NOT LAST VERSION SYNCED')
+                    item.setText(3, 'NOT LAST VERSION SYNCED')
+                    item.is_valid = False
+                    not_updated_items.append(item)
+
+            if not_updated_items and not skip_update:
+                item_paths = [item.path for item in not_updated_items]
+                result = qtutils.show_question(
+                    None, 'Some files are not synced',
+                    'Following files are not synced:\n\n {}\n\nDo you want to sync them?'.format(
+                        '\n'.join(item_paths)))
+                if result == QMessageBox.Yes:
+                    self._progress.setVisible(True)
+                    self._progress.setMinimum(0)
+                    self._progress.setMaximum(len(not_updated_items) - 1)
+                    self._progress_lbl.setText('Synchronizing files ...')
+                    for i, item in enumerate(not_updated_items):
+                        self._progress.setValue(i)
+                        self._progress_lbl.setText('Syncronizing {} ...'.format(item.path))
+                        item.setIcon(0, resource.ResourceManager().icon('sync'))
+                        artellalib.synchronize_file(item.path)
+                        item.setIcon(0, resource.ResourceManager().icon('ok'))
+                    self._update_items(skip_update=True)
         except Exception as e:
             LOGGER.error(str(e))
             LOGGER.error(traceback.format_exc())
         finally:
-            self._progress.setVisible(False)
+            self._progress.setValue(0)
             self._progress_lbl.setText('')
-            self._refresh_files()
-            self._refresh_versions()
+            self._progress.setVisible(False)
 
-    def _on_toggle_all(self, flag):
-        it = QTreeWidgetItemIterator(self._files_list)
-        while it.value():
-            item = it.value()
-            if flag:
-                item.setCheckState(0, Qt.Checked)
-            else:
-                item.setCheckState(0, Qt.Unchecked)
-            it += 1
+    def _refresh_lock_unlock(self):
+        """
+        Internal function that checks if files are is locked or not
+        """
+
+        try:
+            all_items = list(self._all_items())
+            self._progress.setVisible(True)
+            self._progress.setMinimum(0)
+            self._progress.setMaximum(len(all_items) - 1)
+            self._progress_lbl.setText('Checking file lock/unlock status ... Please wait!')
+            for i, item in enumerate(all_items):
+                self._progress.setValue(i)
+                self._progress_lbl.setText('Checking lock/unlock status for: {}'.format(item.text(1)))
+                is_locked, current_user = artellalib.is_locked(item.path)
+                if is_locked:
+                    if not current_user:
+                        item.setCheckState(0, Qt.Unchecked)
+                        item.setFlags(Qt.NoItemFlags)
+                        for i in range(5):
+                            item.setBackgroundColor(i, QColor(160, 50, 40, 100))
+                        item.setText(2, 'LOCK BY OTHER USER')
+                        item.setText(3, 'LOCK BY OTHER USER')
+                        item.is_valid = False
+                    else:
+                        item.setIcon(0, resource.ResourceManager().icon('lock'))
+                else:
+                    item.setIcon(0, resource.ResourceManager().icon('unlock'))
+                    item.is_valid = False
+        except Exception as e:
+            LOGGER.error(str(e))
+            LOGGER.error(traceback.format_exc())
+        finally:
+            self._progress.setValue(0)
+            self._progress_lbl.setText('')
+            self._progress.setVisible(False)
+
+    def _refresh_versions(self):
+        """
+        Internal function that updates working version of selected items
+        :return:
+        """
+
+        try:
+            all_items = list(self._all_items())
+            self._progress.setVisible(True)
+            self._progress.setMinimum(0)
+            self._progress.setMaximum(len(all_items) - 1)
+            self._progress_lbl.setText('Checking file versions ... Please wait!')
+            for i, item in enumerate(all_items):
+                self._progress.setValue(i)
+                self._progress_lbl.setText('Checking version for: {}'.format(item.text(1)))
+                current_version = artellalib.get_file_version(item.path)
+                if current_version == 0:
+                    item.setText(2, '0 (Local Only)')
+                else:
+                    item.setText(2, str(current_version))
+                item.setText(3, str(current_version + 1))
+        except Exception as e:
+            LOGGER.error(str(e))
+            LOGGER.error(traceback.format_exc())
+        finally:
+            self._progress.setValue(0)
+            self._progress_lbl.setText('')
+            self._progress.setVisible(False)
 
     def _checked_items(self):
         """
@@ -246,34 +328,65 @@ class ArtellaUploader(tool.Tool, object):
             yield item
             it += 1
 
-    def _refresh_versions(self):
-        """
-        Internal funciton that updates working version of selected items
-        :return:
-        """
+    def _on_data_changed(self):
+        checked_items = self._checked_items()
+        total_checked_items = len(list(checked_items))
+        self._total_items_lbl.setText('Total Checked Items: {}'.format(total_checked_items))
+
+    def _on_browse(self):
+        stored_path = self.settings().get('upload_path')
+        if stored_path and os.path.isdir(stored_path):
+            start_directory = stored_path
+        else:
+            start_directory = self._project.get_path()
+
+        export_path = tp.Dcc.select_folder_dialog(
+            title='Select Root Path',
+            start_directory=start_directory
+        )
+        if not export_path:
+            return
+
+        self.settings().set('upload_path', str(export_path))
+
+        self._folder_path.setText(export_path)
+
+        self._update_items()
+
+    def _on_sync(self):
+        current_path = self._folder_path.text()
+        if not current_path or not os.path.isdir(current_path):
+            LOGGER.warning('Selected a folder to sync first!')
+            return
+
+        result = qtutils.show_question(
+            None, 'Synchronizing folder: {}'.format(current_path),
+            'Are you sure you want to synchronize this folder? This can take quite a lot of time!')
+        if result == QMessageBox.No:
+            return
 
         try:
-            all_items = list(self._all_items())
             self._progress.setVisible(True)
-            self._progress.setMinimum(0)
-            self._progress.setMaximum(len(all_items) - 1)
-            self._progress_lbl.setText('Checking file versions ... Please wait!')
-            for i, item in enumerate(all_items):
-                self._progress.setValue(i)
-                self._progress_lbl.setText('Checking version for: {}'.format(item.text(1)))
-                current_version = artellalib.get_file_current_working_version(item.path)
-                if current_version == 0:
-                    item.setText(2, '0 (Local Only)')
-                else:
-                    item.setText(2, str(current_version))
-                item.setText(3, str(current_version + 1))
+            self._progress_lbl.setText('Synchronizing files ... Please wait!')
+            self.repaint()
+            artellalib.synchronize_path_with_folders(current_path, recursive=True)
         except Exception as e:
             LOGGER.error(str(e))
             LOGGER.error(traceback.format_exc())
         finally:
-            self._progress.setValue(0)
-            self._progress_lbl.setText('')
             self._progress.setVisible(False)
+            self._progress_lbl.setText('')
+            self._update_items()
+
+    def _on_toggle_all(self, flag):
+        it = QTreeWidgetItemIterator(self._files_list)
+        while it.value():
+            item = it.value()
+            if flag:
+                item.setCheckState(0, Qt.Checked)
+            else:
+                item.setCheckState(0, Qt.Unchecked)
+            it += 1
 
     def _on_lock(self):
         items_to_lock = list()
@@ -286,18 +399,29 @@ class ArtellaUploader(tool.Tool, object):
         if not items_to_lock:
             return
 
+        valid_lock = False
         self._progress.setVisible(True)
         self._progress.setMinimum(0)
         self._progress.setMaximum(len(items_to_lock) - 1)
         self._progress_lbl.setText('Locking files ...')
+        self.repaint()
         for i, item in enumerate(items_to_lock):
             self._progress.setValue(i)
             self._progress_lbl.setText('Locking: {}'.format(item.text(1)))
-            self._project.lock_file(item.path, notify=False)
+            self.repaint()
+            valid_lock = artellapipe.FilesMgr().lock_file(item.path, notify=False)
+            if valid_lock:
+                item.setIcon(0, resource.ResourceManager().icon('lock'))
+                self.show_ok_message('File successfully lock!')
+            else:
+                self.show_ok_message('Was not possible to lock the file!')
         self._progress.setValue(0)
         self._progress_lbl.setText('')
         self._progress.setVisible(False)
         self._project.tray.show_message(title='Lock Files', msg='Files locked successfully!')
+        self.repaint()
+
+        return valid_lock
 
     def _on_unlock(self):
         items_to_unlock = list()
@@ -312,33 +436,44 @@ class ArtellaUploader(tool.Tool, object):
 
         msg = 'If changes in files are not submitted to Artella yet, submit them before unlocking the file please. ' \
               '\n\n Do you want to continue?'
-        res = tp.Dcc.confirm_dialog(
-            title='Unlock File', message=msg, button=['Yes', 'No'], cancel_button='No', dismiss_string='No')
-        if tp.is_houdini():
-            if res != QMessageBox.StandardButton.Yes:
-                return
-        else:
-            if res != 'Yes':
-                return False
+        res = qtutils.show_question(None, 'Unlock File', msg)
+        if res != QMessageBox.Yes:
+            return
 
+        valid_unlock = False
         self._progress.setVisible(True)
         self._progress.setMinimum(0)
         self._progress.setMaximum(len(items_to_unlock) - 1)
         self._progress_lbl.setText('Unlocking files ...')
+        self.repaint()
         for i, item in enumerate(items_to_unlock):
             self._progress.setValue(i)
             self._progress_lbl.setText('Unlocking: {}'.format(item.text(1)))
-            self._project.unlock_file(item.path, notify=False, warn_user=False)
+            self.repaint()
+            valid_unlock = artellapipe.FilesMgr().unlock_file(item.path, notify=False, warn_user=False)
+            if valid_unlock:
+                item.setIcon(0, resource.ResourceManager().icon('unlock'))
+                self.show_ok_message('File successfully unlock!')
+            else:
+                self.show_ok_message('Was not possible to unlock the file!')
         self._progress.setValue(0)
         self._progress_lbl.setText('')
         self._progress.setVisible(False)
         self._project.tray.show_message(title='Unlock Files', msg='Files unlocked successfully!')
+        self.repaint()
+
+        return valid_unlock
 
     def _on_upload(self):
         items_to_upload = list()
         checked_items = self._checked_items()
         for item in checked_items:
             if not os.path.isfile(item.path):
+                self.show_warning_message('Item "{}" path does not exist!'.format(item.text(1)))
+                continue
+            if not item.is_valid:
+                self.show_warning_message(
+                    'Item "{}" is not ready to be uploaded. Lock it or sync it first!'.format(item.text(1)))
                 continue
             items_to_upload.append(item)
 
@@ -350,17 +485,32 @@ class ArtellaUploader(tool.Tool, object):
         except Exception:
             comment, res = QInputDialog.getText(tp.Dcc.get_main_window(), 'Make New Versions', 'Comment')
 
+        valid_upload = False
         if res and comment:
             self._progress.setVisible(True)
             self._progress.setMinimum(0)
             self._progress.setMaximum(len(items_to_upload) - 1)
             self._progress_lbl.setText('Uploading new working versions to Artella server ...')
+            self.repaint()
             for i, item in enumerate(items_to_upload):
                 self._progress.setValue(i)
                 self._progress_lbl.setText('New version for: {} ({})'.format(item.text(1), item.text(3)))
-                self._project.upload_working_version(item.path, skip_saving=True, notify=False, comment=comment)
+                self.repaint()
+                valid_upload = artellapipe.FilesMgr().upload_working_version(item.path, skip_saving=True, notify=False, comment=comment)
+                if valid_upload:
+                    self.show_ok_message(
+                        '{} ({}) uploaded successfully to Artella server!'.format(item.text(1), item.text(3)))
+                else:
+                    self.show_error_message(
+                        'Error while uploaded {} ({}) to Artella server!'.format(item.text(1), item.text(3)))
             self._progress.setValue(0)
             self._progress_lbl.setText('')
             self._progress.setVisible(False)
             self._project.tray.show_message(
                 title='New Working Versions', msg='New versions uploaded to Artella server successfully!')
+            self.repaint()
+
+        if valid_upload:
+            self._update_items()
+
+        return valid_upload
