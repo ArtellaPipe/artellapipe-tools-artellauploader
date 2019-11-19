@@ -28,12 +28,11 @@ from tpQtLib.widgets import splitters
 import artellapipe
 from artellapipe.libs.artella.core import artellalib
 from artellapipe.utils import resource
-from artellapipe.core import tool
 
 LOGGER = logging.getLogger()
 
 
-class ArtellaUploader(tool.Tool, object):
+class ArtellaUploader(artellapipe.Tool, object):
 
     def __init__(self, project, config):
         super(ArtellaUploader, self).__init__(project=project, config=config)
