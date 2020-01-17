@@ -193,13 +193,13 @@ class ArtellaUploader(artellapipe.Tool, object):
                 self._progress_lbl.setText('Checking if file is updated: {}'.format(item.text(1)))
                 is_updated = artellalib.is_updated(item.path)
                 if is_updated is None:
-                    item.setCheckState(0, Qt.Unchecked)
-                    item.setFlags(Qt.NoItemFlags)
+                    item.setCheckState(0, Qt.Checked)
+                    # item.setFlags(Qt.NoItemFlags)
                     for i in range(5):
                         item.setBackgroundColor(i, QColor(160, 50, 40, 100))
                     item.setText(2, 'ONLY IN LOCAL')
                     item.setText(3, 'ONLY IN LOCAL')
-                    not_updated_items.append(item)
+                    # not_updated_items.append(item)
                 elif is_updated is False:
                     item.setCheckState(0, Qt.Unchecked)
                     item.setFlags(Qt.NoItemFlags)
@@ -288,7 +288,7 @@ class ArtellaUploader(artellapipe.Tool, object):
             for i, item in enumerate(all_items):
                 self._progress.setValue(i)
                 self._progress_lbl.setText('Checking version for: {}'.format(item.text(1)))
-                current_version = artellalib.get_file_version(item.path)
+                current_version = artellalib.get_local_working_version(item.path)
                 if current_version == 0:
                     item.setText(2, '0 (Local Only)')
                 else:
@@ -471,9 +471,11 @@ class ArtellaUploader(artellapipe.Tool, object):
                 self.show_warning_message('Item "{}" path does not exist!'.format(item.text(1)))
                 continue
             if not item.is_valid:
-                self.show_warning_message(
-                    'Item "{}" is not ready to be uploaded. Lock it or sync it first!'.format(item.text(1)))
-                continue
+                is_updated = artellalib.is_updated(item.path)
+                if is_updated is not None:
+                    self.show_warning_message(
+                        'Item "{}" is not ready to be uploaded. Lock it or sync it first!'.format(item.text(1)))
+                    continue
             items_to_upload.append(item)
 
         if not items_to_upload:
