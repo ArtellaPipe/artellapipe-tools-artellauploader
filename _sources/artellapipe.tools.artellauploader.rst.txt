@@ -1,12 +1,13 @@
 artellapipe.tools.artellauploader package
 =========================================
 
-Submodules
-----------
+Subpackages
+-----------
 
 .. toctree::
 
-   artellapipe.tools.artellauploader.artellauploader
+   artellapipe.tools.artellauploader.core
+   artellapipe.tools.artellauploader.widgets
 
 Module contents
 ---------------

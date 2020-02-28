@@ -1,0 +1,17 @@
+artellapipe.tools.artellauploader.core package
+==============================================
+
+Submodules
+----------
+
+.. toctree::
+
+   artellapipe.tools.artellauploader.core.artellauploader
+
+Module contents
+---------------
+
+.. automodule:: artellapipe.tools.artellauploader.core
+   :members:
+   :undoc-members:
+   :show-inheritance:

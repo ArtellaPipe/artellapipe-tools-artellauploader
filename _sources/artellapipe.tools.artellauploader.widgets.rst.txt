@@ -1,0 +1,17 @@
+artellapipe.tools.artellauploader.widgets package
+=================================================
+
+Submodules
+----------
+
+.. toctree::
+
+   artellapipe.tools.artellauploader.widgets.artellauploadertool
+
+Module contents
+---------------
+
+.. automodule:: artellapipe.tools.artellauploader.widgets
+   :members:
+   :undoc-members:
+   :show-inheritance:

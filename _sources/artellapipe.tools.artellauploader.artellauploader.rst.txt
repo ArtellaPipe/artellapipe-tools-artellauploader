@@ -1,7 +1,0 @@
-artellapipe.tools.artellauploader.artellauploader module
-========================================================
-
-.. automodule:: artellapipe.tools.artellauploader.artellauploader
-   :members:
-   :undoc-members:
-   :show-inheritance:
