@@ -20,19 +20,18 @@ from Qt.QtWidgets import *
 from Qt.QtCore import *
 from Qt.QtGui import *
 
-import tpDccLib as tp
+import tpDcc as tp
 
-from tpQtLib.core import qtutils
-from tpQtLib.widgets import splitters
+from tpDcc.libs.qt.core import qtutils
+from tpDcc.libs.qt.widgets import splitters
 
 import artellapipe
 from artellapipe.libs.artella.core import artellalib
-from artellapipe.utils import resource
 
 LOGGER = logging.getLogger()
 
 
-class ArtellaUploader(artellapipe.Tool, object):
+class ArtellaUploader(artellapipe.ToolWidget, object):
 
     def __init__(self, project, config):
         super(ArtellaUploader, self).__init__(project=project, config=config)
@@ -64,14 +63,14 @@ class ArtellaUploader(artellapipe.Tool, object):
         self._folder_path.setToolTip(tip)
         self._folder_path.setStatusTip(tip)
         self._folder_path.setContextMenuPolicy(Qt.CustomContextMenu)
-        browse_icon = resource.ResourceManager().icon('open')
+        browse_icon = tp.ResourcesMgr().icon('open')
         self._browse_btn = QPushButton()
         self._browse_btn.setFlat(True)
         self._browse_btn.setIcon(browse_icon)
         self._browse_btn.setFixedWidth(30)
         self._browse_btn.setToolTip('Browse Root Folder')
         self._browse_btn.setStatusTip('Browse Root Folder')
-        sync_icon = resource.ResourceManager().icon('sync')
+        sync_icon = tp.ResourcesMgr().icon('sync')
         self._sync_btn = QPushButton()
         self._sync_btn.setFlat(True)
         self._sync_btn.setIcon(sync_icon)
@@ -109,9 +108,9 @@ class ArtellaUploader(artellapipe.Tool, object):
         buttons_layout = QHBoxLayout()
         buttons_layout.setContentsMargins(2, 2, 2, 2)
         buttons_layout.setSpacing(2)
-        lock_icon = resource.ResourceManager().icon('lock')
-        unlock_icon = resource.ResourceManager().icon('unlock')
-        upload_icon = resource.ResourceManager().icon('upload')
+        lock_icon = tp.ResourcesMgr().icon('lock')
+        unlock_icon = tp.ResourcesMgr().icon('unlock')
+        upload_icon = tp.ResourcesMgr().icon('upload')
         self._lock_btn = QPushButton('Lock')
         self._lock_btn.setIcon(lock_icon)
         self._unlock_btn = QPushButton('Unlock')
@@ -224,9 +223,9 @@ class ArtellaUploader(artellapipe.Tool, object):
                     for i, item in enumerate(not_updated_items):
                         self._progress.setValue(i)
                         self._progress_lbl.setText('Syncronizing {} ...'.format(item.path))
-                        item.setIcon(0, resource.ResourceManager().icon('sync'))
+                        item.setIcon(0, tp.ResourcesMgr().icon('sync'))
                         artellalib.synchronize_file(item.path)
-                        item.setIcon(0, resource.ResourceManager().icon('ok'))
+                        item.setIcon(0, tp.ResourcesMgr().icon('ok'))
                     self._update_items(skip_update=True)
         except Exception as e:
             LOGGER.error(str(e))
@@ -261,9 +260,9 @@ class ArtellaUploader(artellapipe.Tool, object):
                         item.setText(3, 'LOCK BY OTHER USER')
                         item.is_valid = False
                     else:
-                        item.setIcon(0, resource.ResourceManager().icon('lock'))
+                        item.setIcon(0, tp.ResourcesMgr().icon('lock'))
                 else:
-                    item.setIcon(0, resource.ResourceManager().icon('unlock'))
+                    item.setIcon(0, tp.ResourcesMgr().icon('unlock'))
                     item.is_valid = False
         except Exception as e:
             LOGGER.error(str(e))
@@ -410,7 +409,7 @@ class ArtellaUploader(artellapipe.Tool, object):
             self.repaint()
             valid_lock = artellapipe.FilesMgr().lock_file(item.path, notify=False)
             if valid_lock:
-                item.setIcon(0, resource.ResourceManager().icon('lock'))
+                item.setIcon(0, tp.ResourcesMgr().icon('lock'))
                 self.show_ok_message('File successfully lock!')
             else:
                 self.show_ok_message('Was not possible to lock the file!')
@@ -451,7 +450,7 @@ class ArtellaUploader(artellapipe.Tool, object):
             self.repaint()
             valid_unlock = artellapipe.FilesMgr().unlock_file(item.path, notify=False, warn_user=False)
             if valid_unlock:
-                item.setIcon(0, resource.ResourceManager().icon('unlock'))
+                item.setIcon(0, tp.ResourcesMgr().icon('unlock'))
                 self.show_ok_message('File successfully unlock!')
             else:
                 self.show_ok_message('Was not possible to unlock the file!')
