@@ -33,8 +33,8 @@ LOGGER = logging.getLogger()
 
 class ArtellaUploader(artellapipe.ToolWidget, object):
 
-    def __init__(self, project, config):
-        super(ArtellaUploader, self).__init__(project=project, config=config)
+    def __init__(self, project, config, settings, parent):
+        super(ArtellaUploader, self).__init__(project=project, config=config, settings=settings, parent=parent)
 
     def get_main_layout(self):
         main_layout = QVBoxLayout()
