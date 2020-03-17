@@ -332,7 +332,7 @@ class ArtellaUploader(artellapipe.ToolWidget, object):
         self._total_items_lbl.setText('Total Checked Items: {}'.format(total_checked_items))
 
     def _on_browse(self):
-        stored_path = self.settings().get('upload_path')
+        stored_path = self.settings.get('upload_path')
         if stored_path and os.path.isdir(stored_path):
             start_directory = stored_path
         else:
@@ -345,7 +345,7 @@ class ArtellaUploader(artellapipe.ToolWidget, object):
         if not export_path:
             return
 
-        self.settings().set('upload_path', str(export_path))
+        self.settings.set('upload_path', str(export_path))
 
         self._folder_path.setText(export_path)
 
