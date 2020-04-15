@@ -23,7 +23,7 @@ from Qt.QtGui import *
 import tpDcc as tp
 
 from tpDcc.libs.qt.core import qtutils
-from tpDcc.libs.qt.widgets import splitters
+from tpDcc.libs.qt.widgets import dividers
 
 import artellapipe
 from artellapipe.libs.artella.core import artellalib
@@ -77,7 +77,7 @@ class ArtellaUploader(artellapipe.ToolWidget, object):
         path_base_layout.addWidget(path_lbl)
         path_base_layout.addWidget(self._folder_path)
         path_base_layout.addWidget(self._browse_btn)
-        path_base_layout.addWidget(splitters.get_horizontal_separator_widget())
+        path_base_layout.addWidget(dividers.get_horizontal_separator_widget())
         path_base_layout.addWidget(self._sync_btn)
 
         self._all_cbx = QCheckBox()
@@ -122,7 +122,7 @@ class ArtellaUploader(artellapipe.ToolWidget, object):
         buttons_layout.addWidget(self._upload_btn)
 
         self.main_layout.addWidget(self._path_widget)
-        self.main_layout.addLayout(splitters.SplitterLayout())
+        self.main_layout.addLayout(dividers.DividerLayout())
         self.main_layout.addLayout(cbx_lyt)
         self.main_layout.addWidget(self._files_list)
         self.main_layout.addWidget(self._progress)
@@ -354,7 +354,10 @@ class ArtellaUploader(artellapipe.ToolWidget, object):
     def _on_sync(self):
         current_path = self._folder_path.text()
         if not current_path or not os.path.isdir(current_path):
-            LOGGER.warning('Selected a folder to sync first!')
+            msg = 'Select a folder to sync first!'
+            LOGGER.warning(msg)
+            self.show_warning_message(msg)
+
             return
 
         result = qtutils.show_question(
