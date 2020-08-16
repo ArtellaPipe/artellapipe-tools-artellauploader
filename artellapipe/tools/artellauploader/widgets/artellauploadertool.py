@@ -13,6 +13,7 @@ __maintainer__ = "Tomas Poveda"
 __email__ = "tpovedatd@gmail.com"
 
 import os
+import time
 import traceback
 import logging.config
 
@@ -26,12 +27,13 @@ from tpDcc.libs.qt.core import qtutils
 from tpDcc.libs.qt.widgets import dividers
 
 import artellapipe
+from artellapipe.core import tool
 from artellapipe.libs.artella.core import artellalib
 
-LOGGER = logging.getLogger()
+LOGGER = logging.getLogger('artellapipe-tools-artellauploader')
 
 
-class ArtellaUploader(artellapipe.ToolWidget, object):
+class ArtellaUploader(tool.ArtellaToolWidget, object):
 
     def __init__(self, project, config, settings, parent):
         super(ArtellaUploader, self).__init__(project=project, config=config, settings=settings, parent=parent)
@@ -263,7 +265,12 @@ class ArtellaUploader(artellapipe.ToolWidget, object):
                         item.setIcon(0, tp.ResourcesMgr().icon('lock'))
                 else:
                     item.setIcon(0, tp.ResourcesMgr().icon('unlock'))
-                    item.is_valid = False
+
+                    # In Artella Enterprise, we do not need to lock the file to upload it
+                    if hasattr(artellapipe, 'project') and artellapipe.project.is_enterprise():
+                        item.is_valid = True
+                    else:
+                        item.is_valid = False
         except Exception as e:
             LOGGER.error(str(e))
             LOGGER.error(traceback.format_exc())
@@ -413,7 +420,7 @@ class ArtellaUploader(artellapipe.ToolWidget, object):
             valid_lock = artellapipe.FilesMgr().lock_file(item.path, notify=False)
             if valid_lock:
                 item.setIcon(0, tp.ResourcesMgr().icon('lock'))
-                self.show_ok_message('File successfully lock!')
+                LOGGER.info('File successfully lock!')
             else:
                 self.show_ok_message('Was not possible to lock the file!')
         self._progress.setValue(0)
@@ -499,14 +506,30 @@ class ArtellaUploader(artellapipe.ToolWidget, object):
                 self._progress.setValue(i)
                 self._progress_lbl.setText('New version for: {} ({})'.format(item.text(1), item.text(3)))
                 self.repaint()
+
+                file_current_version = artellalib.get_current_version(item.path)
                 valid_upload = artellapipe.FilesMgr().upload_working_version(
                     item.path, skip_saving=True, notify=False, comment=comment)
+
                 if valid_upload:
-                    self.show_ok_message(
-                        '{} ({}) uploaded successfully to Artella server!'.format(item.text(1), item.text(3)))
+                    # We wait before checking again with Artella Drive, otherwise Artella Drive wil not return correct
+                    # values
+                    time.sleep(1.5)
+                    new_file_version = artellalib.get_current_version(item.path)
+                    if file_current_version == new_file_version:
+                        msg = '{} ({}) was not uploaded. File did not have new changes ' \
+                              'to upload to Artella server!'.format(item.text(1), item.text(3))
+                        self.show_warning_message(msg)
+                        LOGGER.warning(msg)
+                        valid_upload = False
+                    else:
+                        msg = '{} ({}) uploaded successfully to Artella server!'.format(item.text(1), item.text(3))
+                        self.show_ok_message(msg)
+                        LOGGER.info(msg)
                 else:
-                    self.show_error_message(
-                        'Error while uploaded {} ({}) to Artella server!'.format(item.text(1), item.text(3)))
+                    msg = 'Error while uploaded {} ({}) to Artella server!'.format(item.text(1), item.text(3))
+                    self.show_error_message(msg)
+                    LOGGER.error(msg)
             self._progress.setValue(0)
             self._progress_lbl.setText('')
             self._progress.setVisible(False)
